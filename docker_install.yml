@@ -1,0 +1,33 @@
+- 
+  name: install docker
+  hosts: junoon_servers
+  become: yes
+
+  tasks:
+   - name: install docker in ubuntu
+     package:
+       name: docker.io
+       state: latest
+     when: ansible_distribution == 'Ubuntu'
+
+   - name: install docker in Amazon Linux
+     package:
+       name: docker
+       state: latest
+     when: ansible_distribution == 'Amazon'
+
+   - name: start docker in ubuntu or Amazon
+     systemd_service:
+       name: docker
+       state: started
+     when: ansible_distribution == 'ubuntu' or ansible_distribution == 'Amazon'
+
+   - name: Add current Ansible user to docker group
+     user:
+        name: "{{ ansible_user }}"
+        groups: docker
+
+   - name: Test docker without sudo
+     command: docker ps
+     become: false 
+

@@ -1,0 +1,20 @@
+- 
+  name: nginx install
+  hosts: junoon_servers
+  become: yes
+
+  tasks:
+    - name: nginx install
+      package:
+         name: nginx
+         state: latest
+
+    - name: nginx start
+      systemd_service:
+        name: nginx
+        state: started
+
+    - name: nginx enable
+      systemd_service:
+        name: nginx
+        enabled: true
