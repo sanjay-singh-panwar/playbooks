@@ -1,0 +1,32 @@
+- 
+  name: ngnix deploy
+  hosts: junoon_servers
+  become: yes
+
+  tasks:
+    - name: install nginx
+      package:
+        name: nginx
+        state: latest
+
+    - name: start nginx
+      systemd_service:
+        name: nginx
+        state: started
+
+    - name: enable nginx
+      systemd_service:
+        name: nginx
+        enabled: true
+
+    - name: Deploy webpage on Ubuntu
+      copy:
+        src: index.html
+        dest: /var/www/html
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Deploy webpage on Amazon linux
+      copy:
+        src: index.html
+        dest: /usr/share/nginx/html
+      when: ansible_distribution == 'Amazon'
