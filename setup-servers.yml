@@ -1,0 +1,123 @@
+- 
+  name: Install Nginx, Node.js, Jenkins and Setup Swap
+  hosts: junoon_servers
+  become: yes
+
+  tasks:
+    # -----------------------------
+    # Update package index
+    # -----------------------------
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    # -----------------------------
+    # Install and start Nginx
+    # -----------------------------
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Start and enable Nginx service
+      systemd_service:
+        name: nginx
+        state: started
+        enabled: true
+
+    # -----------------------------
+    # Install Node.js and npm
+    # -----------------------------
+    - name: Install Node.js
+      apt:
+        update_cache: yes
+        name: nodejs
+        state: present
+
+    - name: Install npm
+      apt:
+        name: npm
+        state: present
+
+    # -----------------------------
+    # Jenkins Install
+    # -----------------------------
+    - name: Install Java 17 (required for Jenkins)
+      apt:
+        name: openjdk-17-jdk
+        state: present
+
+    - name: Ensure dependencies for Jenkins are installed
+      apt:
+        name:
+          - curl
+          - gnupg
+        state: present
+        update_cache: yes
+
+    - name: Download Jenkins key and add to keyrings
+      ansible.builtin.shell: |
+        curl -fsSL https://pkg.jenkins.io/debian/jenkins.io-2023.key | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+
+    - name: Add Jenkins repo
+      copy:
+        dest: /etc/apt/sources.list.d/jenkins.list
+        content: |
+          deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian binary/
+
+    - name: Update apt repo
+      apt:
+        update_cache: yes
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+        update_cache: yes
+
+    - name: Start and enable Jenkins service
+      service:
+        name: jenkins
+        state: started
+        enabled: yes
+    - name: Fetch Jenkins initial admin password
+      ansible.builtin.shell: "sudo cat /var/lib/jenkins/secrets/initialAdminPassword"
+      register: jenkins_password
+
+    - name: Show Jenkins password
+      ansible.builtin.debug:
+        msg: "{{ jenkins_password.stdout }}"
+
+    # -----------------------------
+    # Setup Swap Memory (2GB)
+    # -----------------------------
+    - name: Check if swap already exists
+      command: swapon --show
+      register: swap_check
+      changed_when: false
+
+    - name: Create swap file (2GB)
+      command: fallocate -l 2G /swapfile
+      when: swap_check.stdout == ""
+
+    - name: Set swap file permissions
+      file:
+        path: /swapfile
+        mode: '0600'
+      when: swap_check.stdout == ""
+
+    - name: Make swap
+      command: mkswap /swapfile
+      when: swap_check.stdout == ""
+
+    - name: Enable swap
+      command: swapon /swapfile
+      when: swap_check.stdout == ""
+
+    - name: Add swap to fstab (permanent)
+      mount:
+        name: swap
+        src: /swapfile
+        fstype: swap
+        opts: sw
+        state: present
